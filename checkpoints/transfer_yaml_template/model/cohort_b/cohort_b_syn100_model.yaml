@@ -1,0 +1,301 @@
+# If want set to empty, setting to '', null or empty (not input anything), BUT NOT None, which will be read as string
+# which model is for binary classification
+mode: train  # not change
+
+# task must in ["c", "r"], "c" means classification, "r" means "regression"
+task: c
+
+train:
+  seed: 123456
+  # out_dir stores: ckeckpoint, logging, metric figure
+  # tf is transfer, fz is freezing
+  # out_dir: /gpfsnew/lab/liangmeng/members/liyifan/MRI_QC/s3_DL_model/resnet3d/model/MNI_brain
+  out_dir: results/transfer/model/cohort_b/pre_cohort_a_imb_syn100_r01/
+
+  data_load_mode: "cv"  # must in ['cv', 'dir'], 'cv' is load by cv_file, 'dir' is load by image dir
+  # if using 'cv' mode to load data
+  # "fold_split_path" will override the pasted path. -----> 2024.02.04 update
+  # However, "fold_split_path" exists for compatibility, 
+  # and setting pasted paths instead of "fold_split_path" is the better method.
+  # Therefore, please keep "fold_split_path" as empty as possible
+  fold_split_path: 
+
+  # if fold_split_path is empty, will paste it by: "fold_split_dir"/"train.label_name"/"fold_split_name"
+  # ===========> i.e., "fold_split_path" will overwrite this pasted path <=================
+  label_name: qc
+  # fold_split_dir: "/gpfsnew/lab/liangmeng/members/liyifan/MRI_QC/s3_DL_model/subj_info/cv_info/Crop160192160_T1_brain_to_MNI/fold/"
+  fold_split_dir: "data/splits/transfer_cohort_b_syn100/fold"
+  # fold_split_dir: "/media/disk3/ml/liyifan/MRI_QC/s1_2_img_data/subj_info/cv_info/Test100CropResize160192160_T1_brain_FusionBET_int16gz/fold/"
+  fold_split_name: label_3d_CV.pkl
+
+  valid_fold: 1
+  # ignore_fold: 5  # not used when train or valid (e.g., independent test fold)
+  ignore_fold: [2]  # not used when train or valid (e.g., independent test fold)
+  # if using 'dir' mode to load data
+  train_img_dir: ''
+  train_mask_dir: ''
+  valid_img_dir: ''
+  valid_mask_dir: ''
+  train_label_file_path: ""
+  valid_label_file_path: ""
+  img_name_in_label_file_head: "slice_name"  # default is "name"
+  label_in_label_file_head: "is_exp"  # default is "label" 
+  pattern: '(\d{7}_\d{5}_\d_\d)'  # pattern of all image (slice level)
+  subj_pattern: '(\d{7}_\d{5}_\d_\d)_s'  # pattern of subject (subject level)
+
+  # is using pretrained model (downloaded from the Internet or pre-trained by yourself)
+  # this option will be automatically setting to False if 'is_load_ckp' is True
+  is_pretrained_net: True
+
+  # # if True, "out_dir"/"valid_fold" (which is real output dir) must not exist
+  is_outdir_must_not_exist: False
+
+  # whether to load ckp
+  is_load_ckp: False
+  # load_ckp_best_or_auto must in ['best', 'auto', 'last']
+  # if 'auto', last (newer) auto saved ckp will be loaded; if 'last', the last ckp in auto and best will be loaded
+  load_ckp_mode: 'best'
+  # save pattern, Not modify
+  best_ckp_pattern: 'best_ckp.*\.pth.tar'
+  auto_ckp_pattern:  'auto_ckp.*\.pth.tar'
+  finvl_ckp_pattern: 'finvl_ckp.*\.pth.tar' # finvl means 'final valid'
+  gpu_id: 0
+  # model parameters are automatically saved after auto_save_epoch_interval epoch
+  auto_save_epoch_interval: -1
+  # Maximum number of auto saved ckp, excess auto_ckp_num auto checkpoint which older will be deleted
+  max_auto_ckp_num: -1
+  # print metric and loss to png
+  is_draw_evaluate_figure: True
+  # if running by nohup, set to False, Otherwise, too much logging will be saved
+  is_print_each_batch: True
+  # length of train progress bar of each epoch
+  progress_bar_len: 20
+  # pin memory in dataloader, set True will speeder but used more memory
+  dataloader_pin_memory: True
+  # higher number may have faster training speed
+  dataloader_num_workers: 36
+  # is deterministic, which will making train can be prefect reproducign
+  is_deterministic: True
+  # will make training faster, but loss the reproducibility.
+  # if 'is_deterministic' is True, 'is_benchmark' will be automatically forced to be False
+  is_benchmark: True
+  # might be able to prevent gradient explosions
+  is_clip_grad_norm: True
+  # squeeze image (image output by torchio is 5-d: [b, c, x, y, z]. Squeezing z when training 2d net )
+  # setting to '' to disable this option, and a integer to enable
+  squeeze_img_dim: 
+  # ont hot label, classes is same as the output_channel in model
+  is_onehot_label: True
+
+# when train.is_pretrained_net is True, this options will be used
+# The pertrained model parameter for "pertrained_model_dir" is taken precedence.
+# If it does not exist, the pre-training parameters downloaded from the internet are used ("transfer_ckp_dir")
+transfer:
+  # "pertrained_model_dir" is used preferentially
+  pertrained_model_dir: "results/pretrain/model/cohort_a_imb/fold_0"
+  # will check if "fold" is the same between the "pertrained_model_dir" and the current "train.fold"
+  is_check_pertrained_and_current_fold: False
+  # if 'auto', last (newer) auto saved ckp will be loaded; if 'last', the last ckp in auto and best will be loaded
+  load_ckp_mode: 'best'
+  # save pattern, Not modify
+  best_ckp_pattern: 'best_ckp.*\.pth.tar'
+  auto_ckp_pattern:  'auto_ckp.*\.pth.tar'
+  # downloaded pretrained model will be moved to this path (raw path in home, only used as tmp dir)
+  # if "transfer.pertrained_model_dir" is not exists (or empty), will auto using download pretrained ckp from internet
+  transfer_ckp_dir: "results/pretrain/model/cohort_a_imb/fold_0"
+
+freeze:
+  is_freezing_model: True
+  # names of `model._modules.items()` not in 'training_block_name' will be freezing
+  training_block_name: ["conv_seg"]
+  # using this to enable "lr_decay_across_block"
+  is_lr_decay_across_block: False
+  # The lr of each upward block is the lr * lr_decay_across_block of the latter block
+  # enabled by "is_lr_decay_across_block"
+  lr_decay_across_block: 0.5
+
+model_save:
+  # Use "model_save_ind" as a basis for judging the best model for saveing 
+  model_save_ind: ET_bacc
+  # The indicators for the current and previous "smooth_save_ind_epoch" epochs
+  # will be averaged for checking best model for saving
+  smooth_save_ind_epoch: 1
+  # what ind is better
+  is_higher_ind_better: True  # e.g., loss using False, auc using True
+  save_n_ckp_in_fin_valid_epoch: -1
+    # 2025.07.04 (default in code: False)
+  # If True, the following contents will not be saved:
+  #     optimizer_stat, scheduler_stat, train_eval, valid_eval, scaler
+  # and only save:
+  #     epoch, all_tr_batch_n, valid_mean_loss, valid_ind, valid_ind_name, model_state_dict, config
+  # Furthermore, if True, this model maybe cannot be further trained,
+  #     because the state of the optimizer and others is not saved.
+  is_only_save_lightweight_ckp: True
+
+# confilct with transfer. 
+# when train.is_load_ckp is True, transfer will be disabled
+load_ckp_config:
+  # is retain loaded ckp
+  is_retain_loaded_ckp: True
+  # is load raw config
+  is_load_model: True
+  is_load_loss: True
+  is_load_optimizer: True
+  is_load_lr_scheduler: True
+  is_load_sampler: False
+  is_load_trainer: False
+  is_load_transformer: True
+  # is load trained parameter
+  is_load_optimizer_para: True  # if False, parameter in optimizer and lr_scheduler will not be load
+  is_load_epoch: True  # if False, epoch, best loss, evaluator will not be load
+
+trainer:
+  # When modifying "max_epoch", please modify "lr_scheduler.total_steps" at the same time
+  max_epoch: 10  # --------> Modify "lr_scheduler.total_steps"
+  # The stopping criterion is "model_save.model_save_ind"
+  # If "model_save.model_save_ind" does not be better after "early_stop_epoch" epochs, training be stopped
+  # setting early_stop_epoch <= 0 to disable early stop
+  # Note that the indicator used by earlystop is smoothed, so maybe does not exactly match the indicator figure
+  early_stop_epoch: 10
+  train_batch_size: 4
+  valid_batch_size: 8
+  # After train "valid_every_n_batch" batches,
+  # performing epoch-related operations (validating, model saving, early stop, etc.)
+  # and the actual epoch (number of times validated) is also changed.
+  # setting to <= 0 to disable this option (max times of valid will same as max_epoch)
+  valid_every_n_batch: 8
+
+evaluator:
+  name: HemaPredictEvalPt
+  tr_batch_eval_feq: 1000
+  vl_batch_eval_feq: 1000
+
+sampler:
+  # sample data (for balance label)
+  is_sample: True
+  sampler_weight: {0: 1, 1: 1}
+  # for WeightedKeepLabelSampler, ensure that the samples with these label are all present in an epoch
+  keep_labels: [1]
+
+
+# not used now
+tensorboard:
+  is_save_net_graph: True
+
+model:
+  name: resnet3d
+  # input channel is number of input image (e.g. modality) number
+  input_channel: 1
+  # output channel is number of classes, which is contains background (e.g., background, ICH, IVH, is 3)
+  # in classsifical task, output_channel means the number of class
+  output_channel: 2
+
+  # for resnet3d
+  resnet3d_depth: 50
+
+loss:
+  name: 'CrossEntropyLoss'
+  # name: 'RMSE'
+  # label_smoothing for CrossEntropyLoss ----------------------------
+  #label_smoothing: 0.15
+
+optimizer:
+  # ["Adam", "SGD", "AdamW"]
+  name: 'Adam'
+  # name: 'SGD'
+  # initial learning rate # 1e-4, 5e-5
+  learning_rate: 3.0e-5   # default: [AdamW: 1e-3, Adam: 1e-3, SGD: 0]
+  betas: [0.9, 0.999]  # default: [AdamW: (0.9, 0.999), Adam: (0.9, 0.999)]
+  weight_decay: 0  # default: [AdamW: 0.01, Adam: 0, SGD: 0]
+  momentum: 0.9  # default: [SGD: 0]
+  amsgrad: False # default: [AdamW: False]
+
+lr_scheduler:
+  name: 'ExponentialLR'
+  # name: 'ReduceLROnPlateau'
+  # name: 'LinoPolyScheduler'
+  min_lr: 1.0e-6  # default in ReduceLROnPlateau is 0.00001
+  # for ReduceLROnPlateau --------------------
+  mode: 'min'
+  factor: 0.5  # factor by which learning rate will be reduced
+  patience: 10  # number of *validation runs* with no improvement after which learning rate will be reduced
+  # for LinoPolyScheduler --------------------
+  power: 0.9
+  total_steps: 30  # usually same as trainer-max_epoch
+  # for ExponentialLR ------------------------
+  gamma: 0.99
+
+# transformer for MONAI
+transformer:
+  train:
+    LoadImaged:
+      keys: ["img"]  # where label is int but not mask
+    EnsureChannelFirstd:
+      keys: ["img"]
+      channel_dim: "no_channel"
+    # Orientationd:
+    #   keys: ["img"]
+    #   axcodes: "RAS"
+    # Spacingd:
+    #   keys: ["img"]
+    #   pixdim: [1, 1, 1]
+    # ScaleIntensityRanged:
+    #   keys: ["img"]
+    #   a_min: -175.0
+    #   a_max: 250.0
+    #   b_min: 0.0
+    #   b_max: 1.0
+    #   clip: True
+    # RandSpatialCropd:
+    #   keys: ["img"]
+    #   roi_size: 128
+    #   random_size: False
+    RandAxisFlipd:
+      keys: ["img"]
+      prob: 0.2
+      
+    RandRotated:
+      keys: ["img"]
+      range_x: 10
+      range_y: 10
+      range_z: 10
+      prob: 0.2
+
+    # RandRotate90d:
+    #   keys: ["img"]
+    #   prob: 0.2
+    # RandScaleIntensityd:
+    #   keys: ["img"]
+    #   prob: 0.1
+    #   factors: 0.1
+    # RandShiftIntensityd:
+    #   keys: ["img"]
+    #   prob: 0.1
+    #   offsets: 0.1
+    NormalizeIntensityd:
+      keys: ["img"]
+      nonzero: True
+    ToTensord:
+      keys: ["img"]
+
+  valid:
+    LoadImaged:
+      keys: ["img"]  # where label is int but not mask
+    EnsureChannelFirstd:
+      keys: ["img"]
+      channel_dim: "no_channel"
+    # Orientationd:
+    #   keys: ["img"]
+    #   axcodes: "RAS"
+    # CenterSpatialCropd:
+    #   keys: ["img"]
+    #   roi_size: 128
+    NormalizeIntensityd:
+      keys: ["img"]
+      nonzero: True
+    ToTensord:
+      keys: ["img"]
+
+logger:
+  # if run in background, is_console_out will be automatically set to False
+  is_console_out: True

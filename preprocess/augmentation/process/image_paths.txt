@@ -1,0 +1,3 @@
+data/images/raw/augmented/dataset_a/fg_sample001.nii.gz
+data/images/raw/augmented/dataset_a/fm_sample001.nii.gz
+data/images/raw/augmented/dataset_a/fn_sample001.nii.gz

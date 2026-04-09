@@ -1,0 +1,127 @@
+# If want set to empty, setting to '', null or empty (not input anything), BUT NOT None, which will be read as string
+mode: predict  # not change
+
+# task must in ["c", "r"], "c" means classification, "r" means "regression"
+task: c
+
+predict:
+  # ckp dir info ==================================================================================================
+  # ckp_dir stores: ckeckpoint, logging, metric image; valid_fold be used to find sub_model
+  ckp_dir: results/pretrain/model/cohort_a_aug_imb/fold_0
+  # predict output dir
+  out_dir: results/pretrain/prediction/cohort_a_aug_imb/fold_0
+
+  # gt is ground truth. If is False, not output evaluation results
+  is_have_gt: True
+
+  # Test data ======================================================================================================
+  # must in ['cv', 'dir'], 'cv' is load by cv_file, 'dir' is load by image dir
+  data_load_mode: 'cv'
+
+  # predict by data dir (predict_data_load_mode='dir') ----------------------------------------------------------------
+  img_dir: ""
+  mask_dir: ""  # For compatibility, no real meaning
+  # must have 2 col: name and label (using "img_name_in_label_file_head" and "label_in_label_file_head" to custom colname)
+  label_file_path: ""
+  img_name_in_label_file_head: ""  # default is "name"
+  label_in_label_file_head: ""  # default is "label" 
+  pattern: ''
+  subj_pattern:   # pattern of subject (subject level)
+
+  # predict by data cv fold files (predict_data_load_mode='cv') -------------------------------------------------------
+  fold_split_path:
+
+  # if fold_split_path is empty, will paste it by: "fold_split_dir"/"train.label_name"/"fold_split_name"
+  # ===========> i.e., "fold_split_path" will overwrite this pasted path <=================
+  label_name: qc
+  fold_split_dir: "data/splits/pretrain_cohort_a_aug_imb/fold"
+  fold_split_name: label_3d_CV.pkl
+
+  test_fold: [1]  # int or int_list, which will be predicted
+
+  # load ckp ========================================================================================================
+  # load_ckp_best_or_auto must in ['best', 'auto', 'last']
+  # if 'auto', last (newer) auto saved ckp will be loaded; if 'last', the last ckp in auto and best will be loaded
+  load_ckp_mode: 'best'
+  # save pattern, Not modify
+  best_ckp_pattern: 'best_ckp.*\.pth.tar'
+  auto_ckp_pattern:  'auto_ckp.*\.pth.tar'
+
+  # run info =========================================================================================================
+  gpu_id: 0
+  # if running by nohup, set to False, Otherwise, too much logging will be saved
+  is_print_each_batch: True
+  # length of train progress bar of each epoch
+  progress_bar_len: 20
+  # pin memory in dataloader, set True will speeder but used more memory
+  dataloader_pin_memory: True
+  # higher number may have faster training speed
+  dataloader_num_workers: 8
+  # squeeze image (image output by torchio is 5-d: [b, c, x, y, z]. Squeezing z when training 2d net )
+  # setting to '' to disable this option, and a integer to enable
+  # 3d do not need to be squeeze (will get ERROR when output interpert image)
+  squeeze_img_dim: 
+  # ont hot label, classes is same as the output_channel in model
+  is_onehot_label: True
+  # For regression, labels need to be float32 else get ERROR (e.g., float64)
+  is_label_to_float32: False
+  # For regression, labels need to be [batch, 1] to match model outputs
+  squeeze_label_dim: 
+  # using IntegratedGradients may get OOM after each loop, need to free gpu manually
+  # This will greatly slow down the computing speed.
+  # try setting this option to True if OOM 
+  is_torch_empty_cache_each_loop: True
+
+load_ckp_config:
+  is_retain_loaded_ckp: False  # in predict, loaded ckp will not be covered, so setting to False is ok
+  is_load_model: True
+  is_load_loss: True  # for load deep supervision
+  is_load_optimizer: False  # not used in predict, but not del
+  is_load_lr_scheduler: False # not used in predict, but not del
+  is_load_transformer: False
+  is_load_evaluator: False  # load evaluator same as train, default is False
+
+out:
+  # saved case (slice) predicted results
+  is_out_case_predict: True
+  # will output predict of each subject (average each predicted label of slice from a subject)
+  # in new predict file, this is TODO
+  is_out_subject_predict: False
+  # should setting to True in most contains
+  is_out_eval_csv: True
+  # confusion matrix
+  is_output_figure: True
+
+# Output interpretive fig using interpretive algorithms
+interpret:
+  # using "" or empty to disable this option
+  # ["", "GradientShap", "IntegratedGradients"]
+  name: 
+
+loss:
+  name: 'CrossEntropyLoss'
+  ce_kwargs:  {} # same as args in nn.CrossEntropyLoss
+
+# can setting load_ckp_config - is_load_evaluator as False to using which evaluator
+evaluator:
+  name: HemaPredictEvalPt
+  #name: BinaryClassDiffLossEvalPt
+  pd_batch_eval_feq: 100
+
+logger:
+  is_console_out: True
+
+transformer:
+  predict:
+    LoadImaged:
+      keys: ["img"]  # where label is int but not mask
+    EnsureChannelFirstd:
+      keys: ["img"]
+      channel_dim: "no_channel"
+    NormalizeIntensityd:
+      keys: ["img"]
+      nonzero: True
+    ToTensord:
+      keys: ["img"]
+
+nonlinear: 'Softmax'

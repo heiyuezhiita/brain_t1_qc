@@ -1,0 +1,8 @@
+numpy
+SimpleITK
+nibabel
+torch
+torchvision
+torchaudio
+torchio
+deepbet
